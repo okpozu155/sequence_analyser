@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA/Protein Sequence Analyzer</title>
+    <script>
+        async function analyzeSequence(endpoint) {
+            const sequence = document.getElementById("sequence").value;
+            const formData = new FormData();
+            formData.append("sequence", sequence);
+
+            const response = await fetch(`http://localhost:8000/${endpoint}`, {
+                method: "POST",
+                body: formData,
+            });
+
+            const result = await response.json();
+            document.getElementById("result").innerText = JSON.stringify(result, null, 2);
+        }
+
+        async function visualizeGC() {
+            const sequence = document.getElementById("sequence").value;
+            const formData = new FormData();
+            formData.append("sequence", sequence);
+
+            const response = await fetch("http://localhost:8000/visualize_gc", {
+                method: "POST",
+                body: formData,
+            });
+
+    const imageURL = URL.createObjectURL(await response.blob());
+    document.getElementById("visualization").src = imageURL;
+}
+
+    </script>
+</head>
+<body>
+    <h1>DNA/Protein Sequence Analyzer</h1>
+    <textarea id="sequence" rows="5" cols="50" placeholder="Enter your DNA sequence here"></textarea>
+    <br>
+    <button onclick="analyzeSequence('translate')">Translate</button>
+    <button onclick="analyzeSequence('gc_content')">GC Content</button>
+    <button onclick="analyzeSequence('codon_usage')">Codon Usage</button>
+    <button onclick="visualizeGC()">Visualize GC Content</button>
+    <h2>Results</h2>
+    <pre id="result"></pre>
+    <h2>Visualization</h2>
+    <img id="visualization" alt="GC Content Plot" />
+</body>
+</html>
