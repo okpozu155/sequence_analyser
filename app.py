@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.responses import StreamingResponse
 from Bio.Seq import Seq
+from Bio.Data.CodonTable import TranslationError
 import matplotlib.pyplot as plt
 from io import BytesIO
 
@@ -16,20 +17,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
 @app.post("/translate")
 async def translate_sequence(sequence: str = Form(...)):
-    dna_seq = Seq(sequence.upper())
-    if len(dna_seq) % 3 != 0:
-        # Option 1: Trim the sequence
-        trimmed_seq = dna_seq[:len(dna_seq) - len(dna_seq) % 3]
-        protein_seq = trimmed_seq.translate()
+    try:
+        # Clean the input sequence: remove invalid characters
+        clean_sequence = ''.join([char for char in sequence.upper() if char in "ATGC"])
+        
+        # Check if the cleaned sequence is empty
+        if not clean_sequence:
+            return {"error": "No valid DNA sequence provided after cleaning input."}
+        
+        # Trim the sequence to a multiple of 3
+        trimmed_sequence = clean_sequence[:len(clean_sequence) - len(clean_sequence) % 3]
+        
+        # Translate the sequence
+        dna_seq = Seq(trimmed_sequence)
+        protein_seq = dna_seq.translate()
+        
         return {
-            "warning": "Input sequence length was not a multiple of three and was trimmed.",
-            "Trimmed DNA": str(trimmed_seq),
+            "Original DNA": sequence,
+            "Cleaned DNA": clean_sequence,
+            "Trimmed DNA": trimmed_sequence,
             "Protein": str(protein_seq),
         }
-
-    return {"Protein": str(dna_seq.translate())}
+    except TranslationError as e:
+        # Handle translation errors gracefully
+        return {"error": f"Translation failed: {str(e)}"}
+    except Exception as e:
+        # Catch unexpected errors
+        return {"error": f"An unexpected error occurred: {str(e)}"}
 
 
 @app.post("/gc_content")
@@ -38,11 +56,15 @@ async def gc_content(sequence: str = Form(...)):
     gc_percentage = (gc_count / len(sequence)) * 100
     return {"GC_Content": f"{gc_percentage:.2f}%"}
 
+
+
 @app.post("/codon_usage")
 async def codon_usage(sequence: str = Form(...)):
     codons = [sequence[i:i+3] for i in range(0, len(sequence)-len(sequence)%3, 3)]
     codon_counts = {codon: codons.count(codon) for codon in set(codons)}
     return codon_counts
+
+
 
 @app.post("/visualize_gc")
 async def visualize_gc(sequence: str = Form(...)):
